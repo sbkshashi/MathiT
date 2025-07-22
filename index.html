@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Early Math Learner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom styles for draggable elements and overall look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #app {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .draggable-number, .draggable-operator {
+            cursor: grab;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.8rem; /* Slightly larger font for numbers */
+            border-radius: 9999px; /* Fully rounded for circle shape */
+            aspect-ratio: 1/1; /* Ensure perfect circle */
+            transition: all 0.15s ease-out; /* Smooth transitions for all properties */
+            position: relative; /* Needed for z-index if we add more layers */
+        }
+
+        .draggable-number {
+            background-color: #FFD700; /* Gold */
+            color: #8B4513; /* SaddleBrown */
+            border: 2px solid #DAA520; /* Goldenrod */
+            width: 3.5rem; /* Larger touch target */
+            height: 3.5rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2); /* Subtle text shadow for 3D effect */
+
+            /* New 3D box-shadow effect */
+            box-shadow: 0 4px 0 0 #DAA520, /* Bottom shadow for depth */
+                        0 8px 15px rgba(0, 0, 0, 0.2); /* General floating shadow */
+        }
+
+        .draggable-number:hover {
+            transform: translateY(-3px); /* Lift up slightly on hover */
+            box-shadow: 0 6px 0 0 #DAA520, /* Deeper bottom shadow */
+                        0 12px 20px rgba(0, 0, 0, 0.3); /* More pronounced floating shadow */
+        }
+
+        .draggable-number:active {
+            transform: translateY(0); /* Push down on click/drag */
+            box-shadow: 0 2px 0 0 #DAA520, /* Less depth when pressed */
+                        0 4px 8px rgba(0, 0, 0, 0.15); /* Less pronounced floating shadow */
+            cursor: grabbing;
+        }
+
+        .draggable-operator {
+            background-color: #9370DB; /* MediumPurple */
+            color: #FFFFFF;
+            border: 2px solid #8A2BE2; /* BlueViolet */
+            width: 3.5rem;
+            height: 3.5rem;
+            box-shadow: 0 4px 0 0 #8A2BE2,
+                        0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        .draggable-operator:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 0 0 #8A2BE2,
+                        0 12px 20px rgba(0, 0, 0, 0.3);
+        }
+        .draggable-operator:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 0 0 #8A2BE2,
+                        0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+
+        #answer-drop-zone {
+            min-height: 4rem; /* Ensure it's visible even when empty */
+            border: 3px dashed #a0aec0; /* Light gray dashed border */
+            background-color: #edf2f7; /* Lighter gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.75rem; /* Rounded corners */
+            position: relative; /* For dropped element positioning */
+            padding: 0.5rem; /* Add padding for dropped tiles */
+        }
+
+        #answer-drop-zone.drag-over {
+            border-color: #4299e1; /* Blue on drag over */
+            background-color: #ebf8ff; /* Lighter blue */
+        }
+
+        #answer-placeholder {
+            position: absolute;
+            color: #a0aec0;
+        }
+
+        #dropped-numbers-container {
+            display: flex;
+            gap: 0.5rem; /* Space between dropped numbers */
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap; /* Allow wrapping for many numbers */
+        }
+
+        /* Style for dropped numbers to distinguish from palette, and make them "flat" */
+        #dropped-numbers-container .draggable-number {
+            width: 3rem; /* Slightly smaller in drop zone */
+            height: 3rem;
+            font-size: 1.3rem;
+            cursor: default; /* Not draggable once dropped */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Slight shadow for dropped state */
+            transform: none; /* No transform once dropped */
+            text-shadow: none; /* Remove text shadow for dropped */
+            border: 1px solid #DAA520; /* Lighter border for dropped */
+        }
+
+
+        .button-style {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-style:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-style:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .button-primary {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+
+        .button-secondary {
+            background-color: #FFC107; /* Amber */
+            color: #333;
+        }
+
+        .button-danger {
+            background-color: #F44336; /* Red */
+            color: white;
+        }
+
+        .button-info {
+            background-color: #2196F3; /* Blue */
+            color: white;
+        }
+
+        #message-box {
+            min-height: 2rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #message-box.show {
+            opacity: 1;
+        }
+
+        #message-box.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        #message-box.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        #message-box.info {
+            background-color: #cfe2f3;
+            color: #0c5460;
+        }
+
+        /* Animation for correct answer */
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: #f00; /* Red */
+            border-radius: 50%;
+            animation: confetti-fall 3s forwards;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Styles for the dropdown */
+        .select-container {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .select-container label {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #4a5568; /* Gray-700 */
+            margin-bottom: 0.5rem;
+        }
+
+        .select-container select {
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 2px solid #cbd5e0; /* Gray-300 */
+            background-color: #ffffff;
+            font-size: 1.1rem;
+            color: #2d3748; /* Gray-800 */
+            width: 80%; /* Adjust width as needed */
+            max-width: 300px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            -webkit-appearance: none; /* Remove default arrow on select */
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%234a5568" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em;
+        }
+
+        .select-container select:focus {
+            outline: none;
+            border-color: #4299e1; /* Blue-500 */
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+        }
+
+        /* Social icons styling */
+        .social-icons a {
+            color: #4a5568; /* Default icon color */
+            transition: color 0.2s ease-in-out;
+        }
+        .social-icons a:hover {
+            color: #2d3748; /* Darker on hover */
+        }
+        .social-icons .fa-linkedin:hover {
+            color: #0A66C2; /* LinkedIn blue */
+        }
+        .social-icons .fa-facebook:hover {
+            color: #1877F2; /* Facebook blue */
+        }
+        .social-icons .fa-instagram:hover {
+            color: #E4405F; /* Instagram pink */
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="flex flex-col items-center p-6 bg-white rounded-3xl shadow-xl max-w-lg mx-auto my-8">
+        <!-- Header -->
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6 text-center">Gaṇita Jñāna (Wisdom of Numbers)</h1>
+
+        <!-- Math Task Selection Dropdown -->
+        <div class="select-container">
+            <label for="math-task-select">Choose Math Task:</label>
+            <select id="math-task-select">
+                <option value="random">Random (Addition, Subtraction, Multiplication, Division)</option>
+                <option value="addition">Addition Only</option>
+                <option value="subtraction">Subtraction Only</option>
+                <option value="multiplication">Multiplication Only</option>
+                <option value="division">Division Only</option>
+            </select>
+        </div>
+
+        <!-- Info Display: Timer and Rating -->
+        <div class="flex justify-between w-full mb-6 text-xl font-semibold text-gray-700">
+            <div class="bg-blue-100 p-3 rounded-xl flex-1 text-center mr-2 shadow-sm">
+                Time: <span id="timer-display">00:00</span>
+            </div>
+            <div class="bg-purple-100 p-3 rounded-xl flex-1 text-center ml-2 shadow-sm">
+                Rating: <span id="rating-display">N/A</span>
+            </div>
+        </div>
+
+        <!-- Problem Display -->
+        <div id="problem-display" class="text-6xl font-bold text-blue-700 mb-8 flex items-center justify-center gap-4">
+            <!-- Numbers and operators will be inserted here by JS -->
+            <span id="num1">?</span>
+            <span id="operator">+</span>
+            <span id="num2">?</span>
+            <span>=</span>
+        </div>
+
+        <!-- Answer Drop Zone -->
+        <div id="answer-drop-zone" class="w-full h-20 bg-gray-100 border-4 border-dashed border-gray-300 rounded-2xl flex items-center justify-center text-3xl font-bold text-gray-500 mb-8 relative">
+            <span id="answer-placeholder">Drop Answer Here</span>
+            <div id="dropped-numbers-container" class="flex gap-2"></div>
+        </div>
+
+        <!-- Message Box for Feedback -->
+        <div id="message-box" class="w-full mb-6"></div>
+
+        <!-- Palette for Draggable Numbers -->
+        <div id="palette-numbers" class="flex flex-wrap justify-center gap-3 mb-6 p-4 bg-gray-50 rounded-xl shadow-inner w-full">
+            <!-- Numbers 0-10 will be generated by JS -->
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="flex flex-wrap justify-center gap-4 w-full">
+            <button id="check-button" class="button-style button-primary">Check Answer</button>
+            <button id="clear-button" class="button-style button-secondary">Clear</button>
+            <button id="reset-button" class="button-style button-danger">Reset</button>
+            <button id="save-button" class="button-style button-info">Save Progress</button>
+        </div>
+
+        <!-- Project Summary and Social Links -->
+        <div class="w-full mt-8 pt-6 border-t-2 border-gray-200 text-center">
+            <h3 class="text-2xl font-bold text-gray-700 mb-4">About This Project</h3>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                This interactive "Gaṇita Jñāna (Wisdom of Numbers)" app is designed to help early learners
+                practice basic arithmetic operations. With draggable numbers, a timer, a rating system, and customizable
+                task types (Addition, Subtraction, Multiplication, Division, or Random), it provides an engaging and
+                effective way to build foundational math skills. Progress can be saved to continue learning anytime.
+            </p>
+            <div class="social-icons flex justify-center gap-6 text-3xl">
+                <a href="https://www.linkedin.com/in/yourprofile" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                <a href="https://www.facebook.com/yourprofile" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-square"></i></a>
+                <a href="https://www.instagram.com/yourprofile" target="_blank" aria-label="Instagram"><i class="fab fa-instagram-square"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const num1Display = document.getElementById('num1');
+        const operatorDisplay = document.getElementById('operator');
+        const num2Display = document.getElementById('num2');
+        const answerDropZone = document.getElementById('answer-drop-zone');
+        const answerPlaceholder = document.getElementById('answer-placeholder');
+        const droppedNumbersContainer = document.getElementById('dropped-numbers-container');
+        const paletteNumbers = document.getElementById('palette-numbers');
+        const timerDisplay = document.getElementById('timer-display');
+        const ratingDisplay = document.getElementById('rating-display');
+        const messageBox = document.getElementById('message-box');
+        const mathTaskSelect = document.getElementById('math-task-select'); // New dropdown element
+
+        const checkButton = document.getElementById('check-button');
+        const clearButton = document.getElementById('clear-button');
+        const resetButton = document.getElementById('reset-button');
+        const saveButton = document.getElementById('save-button');
+
+        // Game State Variables
+        let currentProblem = {};
+        let timerInterval;
+        let startTime;
+        let elapsedTime = 0;
+        let correctAttempts = 0;
+        let totalAttempts = 0;
+        let currentAnswerDigits = []; // Array to store individual digits dropped
+
+        // --- Utility Functions ---
+
+        /**
+         * Formats time in seconds to MM:SS string.
+         * @param {number} seconds - Time in seconds.
+         * @returns {string} Formatted time string.
+         */
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        }
+
+        /**
+         * Displays a temporary message in the message box.
+         * @param {string} message - The message to display.
+         * @param {string} type - 'success', 'error', or 'info' for styling.
+         */
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `w-full mb-6 show ${type}`; // Reset classes and add new ones
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2000); // Message disappears after 2 seconds
+        }
+
+        /**
+         * Creates and appends a draggable number tile to the palette.
+         * @param {number} number - The number for the tile.
+         */
+        function createNumberTile(number) {
+            const tile = document.createElement('div');
+            tile.classList.add('draggable-number', 'shadow-md');
+            tile.textContent = number;
+            tile.setAttribute('draggable', 'true');
+            tile.setAttribute('data-value', number);
+            tile.setAttribute('data-type', 'number');
+            paletteNumbers.appendChild(tile);
+        }
+
+        /**
+         * Generates confetti animation.
+         */
+        function generateConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                document.body.appendChild(confetti);
+                confetti.addEventListener('animationend', () => confetti.remove());
+            }
+        }
+
+        // --- Timer Functions ---
+
+        /**
+         * Starts the game timer.
+         */
+        function startTimer() {
+            stopTimer(); // Clear any existing timer
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        /**
+         * Stops the game timer.
+         */
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        /**
+         * Updates the timer display in the UI.
+         */
+        function updateTimerDisplay() {
+            timerDisplay.textContent = formatTime(elapsedTime);
+        }
+
+        // --- Game Logic Functions ---
+
+        /**
+         * Generates a new math problem (addition or subtraction) based on selected task type.
+         * @param {string} taskType - 'random', 'addition', 'subtraction', 'multiplication', or 'division'.
+         */
+        function generateNewProblem(taskType) {
+            let num1, num2, operator, correctAnswer;
+
+            // Helper to get a random integer between min and max (inclusive)
+            const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+            if (taskType === 'addition') {
+                operator = '+';
+                num1 = getRandomInt(1, 9);
+                num2 = getRandomInt(1, 9);
+                correctAnswer = num1 + num2;
+            } else if (taskType === 'subtraction') {
+                operator = '-';
+                // Ensure num1 >= num2 for non-negative results
+                num1 = getRandomInt(1, 9);
+                num2 = getRandomInt(1, num1); // num2 is <= num1
+                correctAnswer = num1 - num2;
+            } else if (taskType === 'multiplication') {
+                operator = '×'; // Using '×' for multiplication symbol
+                num1 = getRandomInt(1, 9);
+                num2 = getRandomInt(1, 9);
+                correctAnswer = num1 * num2;
+            } else if (taskType === 'division') {
+                operator = '÷'; // Using '÷' for division symbol
+                // To ensure whole number division and single-digit problem numbers:
+                // Generate quotient and divisor, then calculate dividend.
+                let quotient, divisor, dividend;
+                do {
+                    quotient = getRandomInt(1, 9); // The answer (1-9)
+                    divisor = getRandomInt(1, 9); // The number to divide by (1-9)
+                    dividend = quotient * divisor; // The number to be divided
+                } while (dividend > 9); // Keep dividend as a single digit for simplicity in problems like 6 ÷ 3
+
+                num1 = dividend;
+                num2 = divisor;
+                correctAnswer = quotient;
+
+            } else { // 'random'
+                const operators = ['+', '-', '×', '÷'];
+                operator = operators[Math.floor(Math.random() * operators.length)];
+
+                if (operator === '+') {
+                    num1 = getRandomInt(1, 9);
+                    num2 = getRandomInt(1, 9);
+                    correctAnswer = num1 + num2;
+                } else if (operator === '-') {
+                    num1 = getRandomInt(1, 9);
+                    num2 = getRandomInt(1, num1);
+                    correctAnswer = num1 - num2;
+                } else if (operator === '×') {
+                    num1 = getRandomInt(1, 9);
+                    num2 = getRandomInt(1, 9);
+                    correctAnswer = num1 * num2;
+                } else { // '÷'
+                    let quotient, divisor, dividend;
+                    do {
+                        quotient = getRandomInt(1, 9);
+                        divisor = getRandomInt(1, 9);
+                        dividend = quotient * divisor;
+                    } while (dividend > 9);
+
+                    num1 = dividend;
+                    num2 = divisor;
+                    correctAnswer = quotient;
+                }
+            }
+
+            currentProblem = { num1, num2, operator, correctAnswer };
+            num1Display.textContent = num1;
+            operatorDisplay.textContent = operator;
+            num2Display.textContent = num2;
+
+            clearDroppedAnswer(); // Clear previous answer tiles
+            startTimer(); // Start timer for the new problem
+        }
+
+        /**
+         * Checks the user's dropped answer against the correct answer.
+         */
+        function checkAnswer() {
+            if (currentAnswerDigits.length === 0) {
+                showMessage('Please drop a number to check!', 'info');
+                return;
+            }
+
+            stopTimer();
+            totalAttempts++;
+
+            // Combine dropped digits into a single number
+            const userAnswer = parseInt(currentAnswerDigits.join(''), 10);
+
+            if (userAnswer === currentProblem.correctAnswer) {
+                correctAttempts++;
+                showMessage('Correct! Well done!', 'success');
+                generateConfetti();
+            } else {
+                showMessage(`Oops! The correct answer was ${currentProblem.correctAnswer}. Try again!`, 'error');
+            }
+            updateRatingDisplay();
+
+            // Generate a new problem after a short delay, using the currently selected task type
+            setTimeout(() => {
+                generateNewProblem(mathTaskSelect.value);
+            }, 2000);
+        }
+
+        /**
+         * Updates the rating display based on correct and total attempts.
+         */
+        function updateRatingDisplay() {
+            if (totalAttempts === 0) {
+                ratingDisplay.textContent = 'N/A';
+            } else {
+                const percentage = ((correctAttempts / totalAttempts) * 100).toFixed(0);
+                ratingDisplay.textContent = `${percentage}% (${correctAttempts}/${totalAttempts})`;
+            }
+        }
+
+        /**
+         * Clears the dropped answer tiles from the drop zone.
+         */
+        function clearDroppedAnswer() {
+            droppedNumbersContainer.innerHTML = ''; // Remove all child elements
+            currentAnswerDigits = []; // Clear the array of digits
+            answerPlaceholder.style.display = 'block'; // Show placeholder text
+        }
+
+        /**
+         * Resets the entire game state.
+         * @param {string} [taskType] - Optional task type to start with after reset. Defaults to current selection.
+         */
+        function resetGame(taskType = mathTaskSelect.value) {
+            stopTimer();
+            elapsedTime = 0;
+            correctAttempts = 0;
+            totalAttempts = 0;
+            updateTimerDisplay();
+            updateRatingDisplay();
+            clearDroppedAnswer();
+            generateNewProblem(taskType); // Generate problem with specified or current task type
+            showMessage('Game Reset!', 'info');
+        }
+
+        /**
+         * Saves the current progress (attempts and rating) to local storage.
+         */
+        function saveProgress() {
+            try {
+                localStorage.setItem('mathLearner_correctAttempts', correctAttempts);
+                localStorage.setItem('mathLearner_totalAttempts', totalAttempts);
+                localStorage.setItem('mathLearner_taskType', mathTaskSelect.value); // Save selected task type
+                showMessage('Progress Saved!', 'success');
+            } catch (e) {
+                console.error("Failed to save progress:", e);
+                showMessage('Failed to save progress.', 'error');
+            }
+        }
+
+        /**
+         * Loads saved progress from local storage.
+         */
+        function loadProgress() {
+            try {
+                const savedCorrect = localStorage.getItem('mathLearner_correctAttempts');
+                const savedTotal = localStorage.getItem('mathLearner_totalAttempts');
+                const savedTaskType = localStorage.getItem('mathLearner_taskType');
+
+                if (savedCorrect !== null && savedTotal !== null) {
+                    correctAttempts = parseInt(savedCorrect, 10);
+                    totalAttempts = parseInt(savedTotal, 10);
+                    updateRatingDisplay();
+                    console.log("Progress loaded:", { correctAttempts, totalAttempts });
+                }
+                if (savedTaskType !== null) {
+                    mathTaskSelect.value = savedTaskType; // Set dropdown to saved value
+                }
+            } catch (e) {
+                console.error("Failed to load progress:", e);
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // Drag and Drop Events
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('draggable-number')) {
+                e.dataTransfer.setData('text/plain', e.target.dataset.value);
+                e.dataTransfer.effectAllowed = 'copy'; // Allow copying the element
+            }
+        });
+
+        answerDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow drop
+            e.dataTransfer.dropEffect = 'copy';
+            answerDropZone.classList.add('drag-over');
+        });
+
+        answerDropZone.addEventListener('dragleave', () => {
+            answerDropZone.classList.remove('drag-over');
+        });
+
+        answerDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            answerDropZone.classList.remove('drag-over');
+
+            const droppedValue = e.dataTransfer.getData('text/plain');
+            const droppedNumber = parseInt(droppedValue, 10);
+
+            if (!isNaN(droppedNumber)) {
+                answerPlaceholder.style.display = 'none'; // Hide placeholder
+
+                // Create a clone of the draggable number for the drop zone
+                const newTile = document.createElement('div');
+                newTile.classList.add('draggable-number'); // Keep base style
+                newTile.classList.add('dropped-tile'); // Specific class for dropped tiles
+                newTile.textContent = droppedNumber;
+                newTile.setAttribute('draggable', 'false'); // Make it non-draggable once dropped
+
+                droppedNumbersContainer.appendChild(newTile);
+                currentAnswerDigits.push(droppedNumber); // Add to our array of digits
+            }
+        });
+
+        // Button Event Listeners
+        checkButton.addEventListener('click', checkAnswer);
+        clearButton.addEventListener('click', clearDroppedAnswer);
+        resetButton.addEventListener('click', () => resetGame(mathTaskSelect.value)); // Pass current selection to reset
+        saveButton.addEventListener('click', saveProgress);
+
+        // Math Task Selection Listener
+        mathTaskSelect.addEventListener('change', () => {
+            resetGame(mathTaskSelect.value); // Reset game and generate new problem based on selection
+        });
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Populate number palette (0-10)
+            for (let i = 0; i <= 10; i++) {
+                createNumberTile(i);
+            }
+            loadProgress(); // Load any saved progress, including task type
+            // Generate the first problem based on the loaded or default task type
+            generateNewProblem(mathTaskSelect.value);
+        });
+    </script>
+</body>
+</html>
